@@ -1,59 +1,145 @@
 package pdp.uz.a8_4androidlessons
 
+import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AnimationUtils
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.android.synthetic.main.custom_dialog_view.view.*
+import kotlinx.android.synthetic.main.fragment_first.*
+import kotlinx.android.synthetic.main.fragment_first.view.*
+import pdp.uz.a8_4androidlessons.adapters.PoemAdapter
+import pdp.uz.a8_4androidlessons.models.Info
+import pdp.uz.a8_4androidlessons.models.Info2
+import pdp.uz.a8_4androidlessons.utils.MySharedPreference
+import java.lang.reflect.Type
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
 
-/**
- * A simple [Fragment] subclass.
- * Use the [FirstFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class FirstFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
-    }
-
+    lateinit var fromJson: ArrayList<Info2>
+    private var gson = Gson()
+    lateinit var poemAdapter: PoemAdapter
+    lateinit var root: View
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_first, container, false)
+
+        root = inflater.inflate(R.layout.fragment_first, container, false)
+        root.back_btn.setOnClickListener {
+
+        }
+
+
+        MySharedPreference.init(container!!.context)
+        val type: Type = object : TypeToken<ArrayList<Info2>>() {}.type
+        val info = MySharedPreference.info
+        fromJson = gson.fromJson(info, type)
+        return root
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment FirstFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            FirstFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
-            }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        val activity = activity as? MainActivity
+        activity?.supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        setHasOptionsMenu(false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val bundle = Bundle()
+        val category = arguments?.getString("category")
+        category_tv.text = category
+        rv.apply {
+            val id = arguments?.getInt("id")
+            poemAdapter = PoemAdapter(
+                fromJson[id!!].info,
+                object : PoemAdapter.OnMyItemLongClickListener {
+
+                    @SuppressLint("UseCompatLoadingForDrawables")
+                    override fun onMyItemLongClick(data: Info, position: Int) {
+                        bundle.putSerializable("info", data)
+
+                        val customDialog = AlertDialog.Builder(context)
+                        val create = customDialog.create()
+                        val inflate =
+                            layoutInflater.inflate(R.layout.custom_dialog_view, null, false)
+                        create.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+//                    create.window?.setWindowAnimations(AnimationUtils.loadAnimation(context, R.anim.fragment_close_enter))
+//                    create.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                        (create.window?.decorView as ViewGroup)
+                            .getChildAt(0).startAnimation(
+                                AnimationUtils.loadAnimation(
+                                    context, android.R.anim.slide_in_left
+                                )
+                            )
+
+                        val main = bundle.getSerializable("info") as Info
+                        create.setView(inflate)
+                        inflate.poem_title.text = main.title
+                        inflate.poem_info.text = main.poem
+                        if (fromJson[id].info!![position].isSaved) {
+                            inflate.heart.setImageDrawable(resources.getDrawable(R.drawable.like))
+                        } else {
+                            inflate.heart.setImageDrawable(resources.getDrawable(R.drawable.love))
+                        }
+                        inflate.send_btn.setOnClickListener {
+                            Toast.makeText(context, "Sent", Toast.LENGTH_SHORT).show()
+                        }
+                        var clickCount = 0
+//                        tv.text = "asfdfsdf"
+                        inflate.saved_btn.setOnClickListener {
+                            clickCount++
+                            if (clickCount % 2 != 0) {
+                                if (fromJson[id].info!![position].isSaved) {
+                                    inflate.heart.setImageDrawable(resources.getDrawable(R.drawable.love))
+                                    Toast.makeText(context, "Not saved", Toast.LENGTH_SHORT).show()
+                                    fromJson[id].info!![position].isSaved = false
+
+                                } else {
+                                    inflate.heart.setImageDrawable(resources.getDrawable(R.drawable.like))
+                                    Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                                    fromJson[id].info!![position].isSaved = true
+
+                                }
+                            } else {
+                                if (fromJson[id].info!![position].isSaved) {
+                                    inflate.heart.setImageDrawable(resources.getDrawable(R.drawable.love))
+                                    Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                                    fromJson[id].info!![position].isSaved = false
+
+                                } else {
+                                    inflate.heart.setImageDrawable(resources.getDrawable(R.drawable.like))
+                                    Toast.makeText(context, "Not saved", Toast.LENGTH_SHORT).show()
+                                    fromJson[id].info!![position].isSaved = true
+                                }
+                            }
+
+                            val toJson = gson.toJson(fromJson)
+                            MySharedPreference.info = toJson
+
+                        }
+                        inflate.share_btn.setOnClickListener {
+                            Toast.makeText(context, "Shared", Toast.LENGTH_SHORT).show()
+                        }
+                        inflate.copy_btn.setOnClickListener {
+                            Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                        }
+
+                        create.show()
+                    }
+
+                })
+            rv.adapter = poemAdapter
+        }
     }
 }
